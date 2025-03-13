@@ -21,7 +21,7 @@ const UpsLiveTrack = () => {
     setTrackingData(null);
 
     try {
-      const response = await fetch('http://localhost:3000/upload/gettrackindividual', {
+      const response = await fetch('http://localhost:3000/upload/getupsindividual', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -48,7 +48,7 @@ const UpsLiveTrack = () => {
   const formatDateTime = (dateTime) => {
     if (!dateTime) return { date: '—', time: '—' };
   
-    const [date, time] = dateTime.split('T');
+    const [date] = dateTime.split('T');
     
     // Create a new Date object with the given time (UTC)
     const dateObj = new Date(dateTime);

@@ -1,38 +1,45 @@
+// databaseService.js
 const db = require('../db');
 
-async function truncateTrackingData() {
-  const querdata = `TRUNCATE TABLE TrackingData`;
-
-  try {
-    // Clean the table before inserting
-    await db.execute(querdata);
-  } catch (error) {
-    console.error('Error truncating the table:', error.message);
-  }
+function truncateTrackingData(callback) {
+    const query = `TRUNCATE TABLE TrackingData`;
+    
+    db.execute(query, (error, results) => {
+        if (error) {
+            console.error('Error truncating the table:', error.message);
+            return callback ? callback(error) : null;
+        }
+        console.log('TrackingData table truncated.');
+        callback ? callback(null) : null;
+    });
 }
 
-async function insertTrackingData(data) {
+function insertTrackingData(data, callback) {
   const query = `
-    INSERT INTO TrackingData 
-    (trackingNumber, statusByLocale, description, deliveryDate, deliveryAttempts, receivedByName) 
-    VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO TrackingData 
+      (trackingNumber, statusByLocale, description, deliveryDate, deliveryAttempts, receivedByName) 
+      VALUES (?, ?, ?, ?, ?, ?)
   `;
 
-  try {
-    // Insert the new data
-    await db.execute(query, [
-      data.trackingNumber,
-      data.statusByLocale,
-      data.description,
-      data.deliveryDate,
-      data.deliveryAttempts,
-      data.receivedByName,
-    ]);
-    
-    console.log(`Data inserted for tracking number: ${data.trackingNumber}`);
-  } catch (error) {
-    console.error(`Error inserting data for tracking number ${data.trackingNumber}:`, error.message);
-  }
+  // Replace undefined values with null
+  const values = [
+      data.trackingNumber || null,
+      data.statusByLocale || null,
+      data.description || null,
+      data.deliveryDate || null,
+      data.deliveryAttempts || null,
+      data.receivedByName || null
+  ];
+
+  db.execute(query, values, (error, results) => {
+      if (error) {
+          console.error(`Error inserting data for tracking number ${data.trackingNumber}:`, error.message);
+          return callback ? callback(error) : null;
+      }
+      console.log(`Data inserted for tracking number: ${data.trackingNumber}`);
+      callback ? callback(null, results) : null;
+  });
 }
 
+// Export the functions
 module.exports = { truncateTrackingData, insertTrackingData };

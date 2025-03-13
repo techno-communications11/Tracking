@@ -1,6 +1,4 @@
 import React, { useState, useRef } from "react";
-import { Button } from "react-bootstrap";
-import { Link } from "react-router-dom";
 
 const ShipmentTracking = () => {
   const [statusMessage, setStatusMessage] = useState("");
@@ -50,17 +48,16 @@ const ShipmentTracking = () => {
     }
   };
 
-  const handleUpload = async (e, carrier) => {
+  const handleFedExUpload = async (e) => {
     e.preventDefault();
-    const formData = new FormData();
-    const file = carrier === "FedEx" ? fedexFile : upsFile;
-    if (!file) return showStatus(`Please select a ${carrier} file.`, "warning");
+    if (!fedexFile) return showStatus("Please select a FedEx file.", "warning");
 
-    formData.append("file", file);
+    const formData = new FormData();
+    formData.append("file", fedexFile);
 
     try {
-      showStatus(`Processing ${carrier} file...`, "info");
-      const response = await fetch("http://localhost:3000/upload", {
+      showStatus("Processing FedEx file...", "info");
+      const response = await fetch("http://localhost:3000/upload/upload-fedex", {
         method: "POST",
         body: formData,
       });
@@ -68,29 +65,58 @@ const ShipmentTracking = () => {
       if (response.ok) {
         const blob = await response.blob();
         const downloadUrl = window.URL.createObjectURL(blob);
-        const link = (
+        setFedexDownloadLink(
           <a
             href={downloadUrl}
-            download={`${carrier.toLowerCase()}_tracking_details.xlsx`}
-            className="btn btn-success d-flex align-items-center justify-content-center gap-2"
+            download="fedex_tracking_details.xlsx"
+            className="btn btn-success"
           >
-            <i className="bi bi-download"></i>
-            Download {carrier} Tracking Details
+            <i className="bi bi-download"></i> Download FedEx Tracking Details
           </a>
         );
-        if (carrier === "FedEx") setFedexDownloadLink(link);
-        else setUpsDownloadLink(link);
-
-        showStatus(
-          `${carrier} tracking details generated successfully!`,
-          "success"
-        );
+        showStatus("FedEx tracking details generated successfully!", "success");
       } else {
-        showStatus(`Error generating ${carrier} tracking details`, "danger");
+        showStatus("Error generating FedEx tracking details", "danger");
       }
     } catch (error) {
       console.error("Error:", error);
-      showStatus(`Failed to connect to the ${carrier} server.`, "danger");
+      showStatus("Failed to connect to the FedEx server.", "danger");
+    }
+  };
+
+  const handleUPSUpload = async (e) => {
+    e.preventDefault();
+    if (!upsFile) return showStatus("Please select a UPS file.", "warning");
+
+    const formData = new FormData();
+    formData.append("file", upsFile);
+
+    try {
+      showStatus("Processing UPS file...", "info");
+      const response = await fetch("http://localhost:3000/upload/upload-ups", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+        setUpsDownloadLink(
+          <a
+            href={downloadUrl}
+            download="ups_tracking_details.xlsx"
+            className="btn btn-success"
+          >
+            <i className="bi bi-download"></i> Download UPS Tracking Details
+          </a>
+        );
+        showStatus("UPS tracking details generated successfully!", "success");
+      } else {
+        showStatus("Error generating UPS tracking details", "danger");
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      showStatus("Failed to connect to the UPS server.", "danger");
     }
   };
 
@@ -112,6 +138,7 @@ const ShipmentTracking = () => {
     file,
     downloadLink,
     inputRef,
+    onUpload,
   }) => (
     <div className="col-md-6 mb-4">
       <div className="card h-100 shadow border-0">
@@ -126,7 +153,7 @@ const ShipmentTracking = () => {
             <h4 className="card-title">{carrier} Tracking</h4>
           </div>
 
-          <form onSubmit={(e) => handleUpload(e, carrier)} className="mt-4">
+          <form onSubmit={onUpload} className="mt-4">
             <div
               className={`drop-zone p-5 mb-4 rounded-3 text-center position-relative ${
                 isDragging ? "bg-light border-primary" : "bg-light"
@@ -188,38 +215,6 @@ const ShipmentTracking = () => {
 
   return (
     <div className="container py-2">
-      <div className="text-center d-flex justify-content-center mb-2">
-        <div className="text-center">
-          <h4 className="fw-bolder mb-3">Shipment Tracking System</h4>
-          <p className="text-muted fw-medium">
-            Upload your tracking files to generate detailed reports
-          </p>
-        </div>
-        
-      </div>
-
-      {statusMessage && (
-        <div
-          className={`alert alert-${statusMessage.type} alert-dismissible fade show mt-4`}
-          role="alert"
-        >
-          <i
-            className={`bi bi-${
-              statusMessage.type === "success"
-                ? "check-circle"
-                : "exclamation-circle"
-            } me-2`}
-          ></i>
-          {statusMessage.message}
-          <button
-            type="button"
-            className="btn-close"
-            data-bs-dismiss="alert"
-            aria-label="Close"
-          ></button>
-        </div>
-      )}
-
       <div className="row g-4">
         <ShipmentCard
           carrier="FedEx"
@@ -228,6 +223,7 @@ const ShipmentTracking = () => {
           file={fedexFile}
           downloadLink={fedexDownloadLink}
           inputRef={fedexInputRef}
+          onUpload={handleFedExUpload}
         />
         <ShipmentCard
           carrier="UPS"
@@ -236,6 +232,7 @@ const ShipmentTracking = () => {
           file={upsFile}
           downloadLink={upsDownloadLink}
           inputRef={upsInputRef}
+          onUpload={handleUPSUpload}
         />
       </div>
     </div>
