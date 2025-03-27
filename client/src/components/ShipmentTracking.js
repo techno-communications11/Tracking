@@ -209,7 +209,9 @@ const ShipmentTracking = () => {
 
           <div className="text-center mt-3">{downloadLink}</div>
         </div>
+      
       </div>
+      
     </div>
   );
 
@@ -235,6 +237,7 @@ const ShipmentTracking = () => {
           onUpload={handleUPSUpload}
         />
       </div>
+      <p> Note*: The excel sheet  should only contain trackingNumbers with heading trackingNumber</p>
     </div>
   );
 };

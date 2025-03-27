@@ -1,13 +1,14 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { Button } from "react-bootstrap";
-import { RiLogoutBoxRLine } from "react-icons/ri";
+import { Button } from "react-bootstrap"; // Added import for Button
+import 'bootstrap/dist/css/bootstrap.min.css'; // Ensure Bootstrap CSS is imported
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
+  
   const handleLogout = () => {
-    localStorage.clear(); // Clears the local storage
-    window.location.href = "/"; // Redirect to the home page
+    localStorage.clear();
+    window.location.href = "/";
   };
 
   return (
@@ -35,21 +36,79 @@ const Navbar = () => {
           className={`collapse navbar-collapse ${isOpen ? "show" : ""}`}
           id="navbarNav"
         >
-          <div className=" py-2 ms-auto ">
-          <Button as={Link} to='/upslivetrack' className="btn fw-bold  bg-transparent mx-1 text-success bgn px-4 py-2 border-0 rounded-pill shadow-sm hover-shadow-lg transition-all">
-          <img src="/ups.jpg" height={30}/> Live Track
-          </Button>
-        <Button as={Link} to='/livetrack' className="btn  fw-bold bg-transparent mx-1 text-success bgn px-4 py-2 border-0 rounded-pill shadow-sm hover-shadow-lg transition-all">
-        <img src="/fedex.webp" height={30}/> &nbsp; Live Track
-          </Button>
-        <Button as={Link} to='/trainingdata' className="btn fw-bold bg-transparent mx-1 text-primary bgn px-4 py-2 border-0 rounded-pill shadow-sm hover-shadow-lg transition-all">
-            Tracking Details
-          </Button>
-          
-          <Button className="btn fw-bold btn-danger mx-1 px-4 py-2 border-0 rounded-pill shadow-sm hover-shadow-lg transition-all" onClick={handleLogout}>
-           <RiLogoutBoxRLine className="fw-bold"/> Logout
-          </Button>
-        </div>
+          <ul className="navbar-nav ms-auto align-items-center">
+            <li className="nav-item">
+              <Button 
+                as={Link} 
+                to="/upslivetrack" 
+                variant="outline-success"
+                className="mx-1 px-4 py-2 rounded-pill shadow-sm"
+              >
+                <img src="/ups.jpg" height={30} alt="UPS" className="me-2" />
+                UPS Live Track
+              </Button>
+            </li>
+            <li className="nav-item">
+              <Button 
+                as={Link} 
+                to="/livetrack" 
+                variant="outline-success"
+                className="mx-1 px-4 py-2 rounded-pill shadow-sm"
+              >
+                <img src="/fedex.webp" height={30} alt="FedEx" className="me-2" />
+                FedEx Live Track
+              </Button>
+            </li>
+            <li className="nav-item">
+              <Button 
+                as={Link} 
+                to="/trackingdetails" 
+                variant="outline-primary"
+                className="mx-1 px-4 py-2 rounded-pill shadow-sm"
+              >
+                Tracking Details
+              </Button>
+            </li>
+            <li className="nav-item">
+              <Link className="nav-link fw-medium" to="/trainingdata">
+                Training Data
+              </Link>
+            </li>
+            <li className="nav-item">
+              <Link className="nav-link fw-medium" to="/trackingdetails">
+                Upload
+              </Link>
+            </li>
+            <li className="nav-item">
+              <Link className="nav-link fw-medium" to="/marketstructure">
+                Market Structure
+              </Link>
+            </li>
+            <li className="nav-item">
+              <Link className="nav-link fw-medium" to="/management">
+                Management
+              </Link>
+            </li>
+            <li className="nav-item">
+              <Link className="nav-link fw-medium" to="/credentials">
+                Credentials
+              </Link>
+            </li>
+            <li className="nav-item">
+              <Link className="nav-link fw-medium" to="/register">
+                Register
+              </Link>
+            </li>
+            <li className="nav-item">
+              <Button
+                variant="danger"
+                className="mx-2 btn-sm"
+                onClick={handleLogout}
+              >
+                Logout
+              </Button>
+            </li>
+          </ul>
         </div>
       </div>
     </nav>

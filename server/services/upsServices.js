@@ -26,111 +26,129 @@ function getAccessToken(callback) {
     });
 }
 
-
 function getUpsTrackingDetails(trackingNumbers, callback) {
-  if (!Array.isArray(trackingNumbers) || trackingNumbers.length === 0) {
-    return callback ? callback(new Error("Please provide an array of tracking numbers")) : null;
-  }
-
-  const trackingDetails = [];
-  let completed = 0;
-  const total = trackingNumbers.length;
-
-  function checkComplete(err) {
-    if (err) {
-      console.error("Error in processing:", err);
+    if (!Array.isArray(trackingNumbers) || trackingNumbers.length === 0) {
+        return callback ? callback(new Error("Please provide an array of tracking numbers")) : null;
     }
-    completed++;
-    if (completed === total && callback) {
-      callback(null, trackingDetails);
-    }
-  }
 
-  getAccessToken((error, accessToken) => {
-    if (error) return callback ? callback(error) : null;
+    const trackingDetails = [];
+    let completed = 0;
+    const total = trackingNumbers.length;
 
-    truncateTrackingData((truncateError) => {
-      if (truncateError) return callback ? callback(truncateError) : null;
-
-      trackingNumbers.forEach(trackingNumber => {
-        if (!trackingNumber || typeof trackingNumber !== 'string' || trackingNumber.trim() === '') {
-          console.error('Skipping invalid or empty tracking number:', trackingNumber);
-          checkComplete(new Error('Invalid tracking number'));
-          return;
+    function checkComplete(err) {
+        if (err) {
+            console.error("Error in processing:", err);
         }
+        completed++;
+        if (completed === total && callback) {
+            callback(null, trackingDetails);
+        }
+    }
 
-        axios.get(
-          `https://onlinetools.ups.com/api/track/v1/details/${trackingNumber}`,
-          {
-            headers: {
-              "Authorization": `Bearer ${accessToken}`,
-              "transId": `${Date.now()}`,
-              "transactionSrc": "tracking_app",
-              "Content-Type": "application/json",
-            },
-          }
-        )
-        .then(response => {
-          const shipment = response.data?.trackResponse?.shipment?.[0];
-          if (!shipment) throw new Error("No shipment data found");
+    getAccessToken((error, accessToken) => {
+        if (error) return callback ? callback(error) : null;
 
-          const packageDetails = shipment.package?.[0] || {};
-          const latestStatus = packageDetails.currentStatus || {};
-          const dateAndTimes = packageDetails.deliveryDate.map( x=>x.date) || [];
-           console.log(dateAndTimes)
+        truncateTrackingData((truncateError) => {
+            if (truncateError) return callback ? callback(truncateError) : null;
 
+            trackingNumbers.forEach(trackingNumber => {
+                if (!trackingNumber || typeof trackingNumber !== 'string' || trackingNumber.trim() === '') {
+                    console.error('Skipping invalid or empty tracking number:', trackingNumber);
+                    checkComplete(new Error('Invalid tracking number'));
+                    return;
+                }
 
-          let deliveryDate = null;
-          const status = latestStatus.description?.toLowerCase() || "unknown";
+                axios.get(
+                    `https://onlinetools.ups.com/api/track/v1/details/${trackingNumber}`,
+                    {
+                        headers: {
+                            "Authorization": `Bearer ${accessToken}`,
+                            "transId": `${Date.now()}`,
+                            "transactionSrc": "tracking_app",
+                            "Content-Type": "application/json",
+                        },
+                    }
+                )
+                .then(response => {
+                    const shipment = response.data?.trackResponse?.shipment?.[0];
+                    if (!shipment) throw new Error("No shipment data found");
 
-          if (status.includes("delivered")) {
-            deliveryDate = dateAndTimes.find(item => item.type === "ACTUAL_DELIVERY")?.dateTime;
-          } else if (status.includes("out for delivery") || status.includes("on the way")) {
-            deliveryDate = dateAndTimes.find(item => item.type === "ESTIMATED_DELIVERY")?.dateTime;
-          }
+                    const packageDetails = shipment.package?.[0] || {};
+                    const latestStatus = packageDetails.currentStatus || {};
+                    const activities = packageDetails.activity || [];
+                    const deliveryInfo = packageDetails.deliveryInformation || {};
 
-          const trackingData = {
-            trackingNumber: trackingNumber, // Ensure trackingNumber is never null
-            statusByLocale: latestStatus.description || "Unknown",
-            description: latestStatus.description || "No description available",
-            deliveryDate: deliveryDate || null,
-            deliveryAttempts: packageDetails?.deliveryAttempts || 0,
-            receivedByName: packageDetails?.receivedBy || null
-          };
+                    // Find the most relevant activity for the current status
+                    const relevantActivity = activities.find(activity => 
+                        activity.status?.code === latestStatus.code
+                    ) || activities[0] || {};
 
-          insertTrackingData(trackingData, (insertError) => {
-            if (insertError) {
-              console.error(`Error inserting data for ${trackingNumber}:`, insertError);
-              checkComplete(insertError);
-              return;
-            }
-            trackingDetails.push(trackingData);
-            checkComplete(null);
-          });
-        })
-        .catch(error => {
-          console.error(`Error for ${trackingNumber}:`, error.response?.data || error.message);
-          const errorData = {
-            trackingNumber: trackingNumber, // Ensure trackingNumber is never null
-            statusByLocale: "Error",
-            description: error.message,
-            deliveryDate: null,
-            deliveryAttempts: 0,
-            receivedByName: null
-          };
-          insertTrackingData(errorData, (insertError) => {
-            if (insertError) {
-              console.error(`Error inserting error data for ${trackingNumber}:`, insertError);
-              checkComplete(insertError);
-              return;
-            }
-            trackingDetails.push(errorData);
-            checkComplete(null);
-          });
+                    // Format date with -7 hour time adjustment
+                    let formattedDeliveryDate = null;
+                    if (relevantActivity.date && relevantActivity.time) {
+                        // Parse UPS date (YYYYMMDD) and time (HHMMSS)
+                        const upsDate = relevantActivity.date;
+                        const upsTime = relevantActivity.time.padEnd(6, '0');
+                        
+                        // Create date object in UTC
+                        const utcDate = new Date(
+                            `${upsDate.substring(0, 4)}-${upsDate.substring(4, 6)}-${upsDate.substring(6, 8)}T${upsTime.substring(0, 2)}:${upsTime.substring(2, 4)}:${upsTime.substring(4, 6)}Z`
+                        );
+
+                        // Apply -7 hour offset
+                        const adjustedDate = new Date(utcDate.getTime() - (7 * 60 * 60 * 1000));
+                        
+                        // Format as ISO 8601 with -07:00 timezone
+                        const isoString = adjustedDate.toISOString().replace('Z', '');
+                        formattedDeliveryDate = `${isoString}-07:00`;
+                    }
+
+                    const trackingData = {
+                        trackingNumber: trackingNumber,
+                        statusByLocale: latestStatus.description || "Unknown",
+                        description: latestStatus.description || "No description available",
+                        deliveryAttempts: packageDetails.deliveryAttempts || 0,
+                        receivedByName: deliveryInfo.receivedBy || null,
+                        deliveryDate: formattedDeliveryDate,
+                        upsOriginalTime: relevantActivity.date && relevantActivity.time 
+                            ? `${relevantActivity.date} ${relevantActivity.time}` 
+                            : null
+                    };
+
+                    insertTrackingData(trackingData, (insertError) => {
+                        if (insertError) {
+                            console.error(`Error inserting data for ${trackingNumber}:`, insertError);
+                            checkComplete(insertError);
+                            return;
+                        }
+                        trackingDetails.push(trackingData);
+                        checkComplete(null);
+                    });
+                })
+                .catch(error => {
+                    console.error(`Error for ${trackingNumber}:`, error.response?.data || error.message);
+                    const errorData = {
+                        trackingNumber: trackingNumber,
+                        statusByLocale: "Error",
+                        description: error.message,
+                        deliveryAttempts: 0,
+                        receivedByName: null,
+                        deliveryDate: null,
+                        upsOriginalTime: null
+                    };
+                    insertTrackingData(errorData, (insertError) => {
+                        if (insertError) {
+                            console.error(`Error inserting error data for ${trackingNumber}:`, insertError);
+                            checkComplete(insertError);
+                            return;
+                        }
+                        trackingDetails.push(errorData);
+                        checkComplete(null);
+                    });
+                });
+            });
         });
-      });
     });
-  });
 }
 
 module.exports = { getUpsTrackingDetails };
